@@ -1,0 +1,23 @@
+<FilesMatch "^\.claudeignore$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+<FilesMatch "^\.codexignore$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+<FilesMatch "^\.gitignore$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+<FilesMatch "^AGENTS\.md$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+<FilesMatch "^README\.md$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+RedirectMatch 403 /\.git
+RedirectMatch 403 /specs/
+RedirectMatch 403 /logs/

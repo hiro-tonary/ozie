@@ -1,0 +1,30 @@
+@charset "utf-8";
+
+h1
+{
+	background-color:black;
+	color:whitesmoke;
+}
+
+h2
+{
+	color:black;
+}
+
+table
+{
+	border:1px solid silver;
+}
+
+th,
+td
+{
+	border:1px solid silver;
+}
+
+th
+{
+	color:black;
+	background-color:whitesmoke;
+}
+
