@@ -1,0 +1,56 @@
+# 環境変数ファイル（機密情報）
+.env
+.env.*
+!.env.example
+
+# ログファイル
+log/
+*.log
+
+# データファイル
+data/
+
+# Dockerボリューム・キャッシュ
+db_data/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# 依存関係（サイズ大）
+node_modules/
+venv/
+.venv/
+backend/.venv/
+frontend/node_modules/
+
+# IDE設定
+.kiro/
+.kiroignore
+.vscode/
+.cursor/
+.cursorignore
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# ビルド成果物
+frontend/build/
+frontend/dist/
+backend/staticfiles/
+*.egg-info/
+
+# テストカバレッジ
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Git関連
+.git/
+.gitignore
+.github/
+
+# Dockerイメージ・コンテナは参照不要
+docker-compose.override.yml

@@ -1,0 +1,21 @@
+/config.example/
+/logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Composer
+/vendor/
+
+*.log
+
+.env
+.env.*
+
+# IDE
+/.vscode/
+/.idea/
+
+/cache/
+/tmp/
