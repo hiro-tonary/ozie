@@ -216,19 +216,23 @@ $(function(){
 </div>
 <div style="clear:both;"></div>
 <div class="label small" style="margin-top:8px;">
-得意先
+<span style="display:inline-block;min-width:72px;">得意先</span>
+<span style="display:inline-block;margin-left:8px;">
+<?php
+    for ($i=0; $i<$customers_count; $i++){
+        print '<label style=\"margin-right:8px;white-space:nowrap;\">';
+        print '<input type=\"checkbox\" name=\"param_customer_ids[]\"';
+        print ' value=\"'.$customers[$i]['id'].'\"';
+        print (in_array($customers[$i]['id'], $param_customer_ids))?' checked':'';
+        print '>'.$customers[$i]['name'];
+        print '</label>';
+    }
+?>
+</span>
 </div>
 <div style="margin:6px 0 12px 0;">
 <span class="button" name="edit_customers">得意先編集</span>
 </div>
-<?php
-    for ($i=0; $i<$customers_count; $i++){
-        print '<input type="checkbox" name="param_customer_ids[]"';
-        print ' value="'.$customers[$i]['id'].'"';
-        print (in_array($customers[$i]['id'], $param_customer_ids))?' checked':'';
-        print '>'.$customers[$i]['name']."\n";
-    }
-?>
 <div style="clear:both;"></div>
 <?php
     if ($mode == 'exec' and $error_flg == false){
