@@ -220,9 +220,9 @@ $(function(){
 <span style="display:inline-block;margin-left:8px;">
 <?php
     for ($i=0; $i<$customers_count; $i++){
-        print '<label style=\"margin-right:8px;white-space:nowrap;\">';
-        print '<input type=\"checkbox\" name=\"param_customer_ids[]\"';
-        print ' value=\"'.$customers[$i]['id'].'\"';
+        print '<label style="margin-right:8px;white-space:nowrap;">';
+        print '<input type="checkbox" name="param_customer_ids[]"';
+        print ' value="'.$customers[$i]['id'].'"';
         print (in_array($customers[$i]['id'], $param_customer_ids))?' checked':'';
         print '>'.$customers[$i]['name'];
         print '</label>';
