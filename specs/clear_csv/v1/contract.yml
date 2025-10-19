@@ -1,0 +1,230 @@
+metadata:
+  name: clear_csv_sales_export
+  description: "クリア取込用売上げデータ(CSV)を生成してダウンロードする画面機能"
+  version: "2024-09-03"
+  status: active
+scope:
+  files:
+    - tool/download/csv_for_clear.php
+    - tool/download/tmp_download.php
+    - tool/include/Customers.php
+  environment:
+    - Config::$global_include_path
+    - Config::$tmpdir_path
+    - Config::$keep_days
+  dependencies:
+    - Tonary.php
+    - Tonary_NE.php
+    - Tonary_FileMaker.php
+    - NE/NEReceiveOrder.php
+    - NE/NEReceiveOrderRow.php
+    - NE/NEBackupGoods.php
+authentication:
+  method: Tonary_NE::login()
+  session_token: true
+inputs:
+  http_method: GET|POST
+  hidden_fields:
+    - name: token
+      required: true
+      description: "Tonary_NE ログイン時にセッションへ格納された CSRF トークン。POST 時に tmp_download.php で検証される。"
+  form_fields:
+    - name: mode
+      type: string
+      values:
+        - ""
+        - "exec"
+      default: ""
+      description: "'exec' の場合に CSV 生成処理を実行。"
+    - name: param_start_date
+      type: date
+      format: "Y-m-d"
+      default: "アクセス日時の日付"
+      required_when: "mode=exec"
+    - name: param_stop_date
+      type: date
+      format: "Y-m-d"
+      default: "アクセス日時の日付"
+      required_when: "mode=exec"
+    - name: param_customer_ids[]
+      type: array<string>
+      default: "初回表示時は Customers::$datas の id 全件"
+      required_when: "mode=exec"
+processing:
+  steps:
+    - name: initialize
+      actions:
+        - "Tonary::session_start()"
+        - "Tonary::write_accesslog()"
+        - "Tonary_NE::login() で Next Engine 認証情報とユーザー情報を取得"
+        - "Customers::$datas を読み込み、初期選択を決定"
+    - name: validate_input
+      execute_when: "mode=exec"
+      validations:
+        - "param_customer_ids が未指定の場合は '得意先を選択してください。' を表示し処理中断"
+        - "param_start_date または param_stop_date が空の場合はエラー表示と処理中断"
+    - name: fetch_orders
+      execute_when: "mode=exec && エラーなし"
+      api_call:
+        endpoint: "/api_v1_receiveorder_row/search"
+        params:
+          receive_order_delivery_cut_form_id-neq: ""
+          receive_order_deleted_flag-neq: "1"
+          receive_order_row_cancel_flag-neq: "1"
+          receive_order_row_deleted_flag-neq: "1"
+          receive_order_send_date-gte: param_start_date
+          receive_order_send_date-lte: param_stop_date
+          offset: 0
+          limit: 10000
+          sort: "receive_order_id-asc"
+          fields: "NEReceiveOrder::$fields と NEReceiveOrderRow::$fields の結合リスト"
+        error_handling: "result != success の場合 'システムエラー {message}' を表示して処理終了"
+      post_processing:
+        - "取得した受注行から商品コードを重複排除し target_goods_ids を作成"
+    - name: fetch_goods_master
+      execute_when: "target_goods_ids が存在 && エラーなし"
+      api_call:
+        endpoint: "/api_v1_master_goods/search"
+        params:
+          goods_id-in: "target_goods_ids のカンマ区切り"
+          goods_deleted_flag-neq: "1"
+          offset: 0
+          limit: 10000
+          sort: "goods_representation_id-asc,goods_id-asc"
+          fields: "NEBackupGoods::$query_fields"
+        error_handling: "result != success の場合 エラー終了"
+    - name: transform_rows
+      execute_when: "mode=exec && エラーなし"
+      business_rules:
+        payment_method_mapping:
+          - match: "クレジットカード|Amazonペイメント" -> "クレジット"
+          - match: "ポイント" -> "ポイント"
+          - match: "代金引換" -> "代金引換"
+          - match: "みずほ銀行|みすほ銀行" -> "みずほ普通"
+          - match: "ジャパンネットバンク" -> "ＪＮＢ"
+          - match: "銀行振込|郵便送金" -> "銀行振込"
+          - match: "ぱるる" -> "ぱるる"
+          - match: "ＹＪＰＰＯＩＮＴ" -> "Ｙポイント"
+        customer_mapping: "receive_order_shop_id と Customers::$datas の shop_id を突合し、customer_code / tax_type / tax_method を設定"
+        overseas_delivery_override:
+          condition: "receive_order_delivery_id in (80,98,99)"
+          customer_code: "000103"
+          shop_name: "楽天海外"
+          tax_method: "免税"
+          tax_type: "非課税"
+        goods_enrichment:
+          jan_source: "goods_model_number"
+          nekutai_discount:
+            condition: "receive_order_row_goods_id == 'nekutai'"
+            unit_price: -1650
+        additional_rows:
+          - id: point
+            condition: "point_amount > 0 && receive_order_shop_id == 1"
+            overrides:
+              customer_code: "POINT"
+              tax_method: "内税"
+              tax_type: "非課税"
+              jan: "1313"
+              goods_id: "ozie本店 ﾎﾟｲﾝﾄ還元 値引"
+              quantity: 1
+              unit_price: "- point_amount"
+          - id: coupon
+            condition: "other_amount == -500 && receive_order_shop_id == 1"
+            overrides:
+              customer_code: "000100"
+              tax_method: "内税"
+              tax_type: "非課税"
+              jan: "1082"
+              goods_id: "ozie本店NEWクーポン 値引"
+              quantity: 1
+              unit_price: -500
+          - id: gift
+            condition: "gift_flag == 1"
+            overrides:
+              customer_code: "GIFT"
+              tax_method: "内税"
+              tax_type: "課税"
+              jan: "1555"
+              goods_id: "ギフト"
+              quantity: 1
+              unit_price: "shop_id == 1 ? charge_amount : other_amount"
+          - id: amazon_cod
+            condition: "charge_amount > 0 && receive_order_shop_id == 4 && receive_order_payment_method_id == 1"
+            overrides:
+              customer_code: "DAIBIKI"
+              tax_method: "内税"
+              tax_type: "課税"
+              jan: "1333"
+              goods_id: "ｱﾏｿﾞﾝ代金引換手数料"
+              quantity: 1
+              unit_price: "charge_amount"
+          - id: delivery
+            condition: "delivery_fee_amount > 0"
+            overrides:
+              customer_code: "DELIVERY"
+              jan: "1090"
+              goods_id: "送料 or 送料　海外発送"
+              quantity: 1
+              unit_price: "delivery_fee_amount"
+              tax_method: "海外発送の場合は免税, その他は内税"
+              tax_type: "海外発送の場合は非課税, その他は課税"
+    - name: merge_and_filter
+      actions:
+        - "追加行を既存配列にマージし receive_order_id -> receive_order_row_no -> 商品名でソート"
+        - "param_customer_ids に含まれる customer_code のみを抽出"
+    - name: generate_csv
+      execute_when: "datas_count > 0"
+      csv:
+        encoding: SJIS-win
+        columns:
+          - 売上番号
+          - 売上日
+          - 得意先コード
+          - 得意先名
+          - 納品先郵便番号（親番）
+          - 納品先郵便番号（枝番）
+          - 納品先住所（上段）
+          - 納品先住所（下段）
+          - 得意先担当者
+          - 取引形態
+          - 消費税計算方法
+          - 請求締日
+          - 入金予定日
+          - 入金方法
+          - 自社部門コード
+          - 自社部門名
+          - 自社営業担当者コード
+          - 自社営業担当者名
+          - 商品コード
+          - 商品名
+          - 数量
+          - 単位
+          - 販売単価
+          - 消費税課税区分
+          - 備考
+          - 事業区分
+          - 商品名（下段）
+          - 原単価
+        filepath_pattern: "Config::$tmpdir_path . 'clear_csv/clear_{Y_m_d_H_i_s}.csv'"
+        newline: CRLF
+    - name: cleanup_and_listing
+      actions:
+        - "Config::$tmpdir_path.'clear_csv/' 内のファイルを走査し、keep_days より古いファイルを削除"
+        - "残ったファイル名を画面にボタン表示"
+outputs:
+  success:
+    - "画面上にヒット件数と説明を表示"
+    - "CSV 作成後は自動で tmp_download.php への POST を実行しダウンロード開始"
+  failure:
+    - "エラーメッセージを画面に表示。CSV は生成しない。"
+security:
+  - "X-Frame-Options: DENY"
+  - "Content-Type: text/html; charset=UTF-8"
+  - "Cache-Control: no-store, no-cache, must-revalidate"
+  - "POST 時の token 検証（tmp_download.php 内）"
+logging:
+  - "Tonary::write_accesslog() によるアクセス記録"
+  - "エラー発生時は Tonary_NE::write_errorlog() または Tonary::write_errorlog()"
+limits:
+  - "受注取得 API は limit=10000。結果件数が 1000 商品を超える可能性がある場合は運用で注意喚起。"
+  - "CSV 行数は param_customer_ids によってフィルタされた結果に依存。制限なし。"

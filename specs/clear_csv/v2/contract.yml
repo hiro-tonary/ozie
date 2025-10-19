@@ -1,0 +1,164 @@
+metadata:
+  name: clear_csv_sales_export_v2
+  description: "クリア取込用売上げデータ機能（得意先マスタ編集対応版）"
+  version: "2024-09-03-plan"
+  status: planned
+scope:
+  files:
+    - tool/download/csv_for_clear.php
+    - tool/download/customers_edit.php        # 新規: 得意先編集画面
+    - tool/download/tmp_download.php
+    - tool/include/Customers.php              # 初期テンプレート
+  environment:
+    - Config::$global_include_path
+    - Config::$tmpdir_path
+    - Config::$keep_days
+    - Config::$customer_path                  # 新規: タブ区切り保存先
+  dependencies:
+    - Tonary.php
+    - Tonary_NE.php
+    - Tonary_FileMaker.php
+    - NE/NEReceiveOrder.php
+    - NE/NEReceiveOrderRow.php
+    - NE/NEBackupGoods.php
+authentication:
+  method: Tonary_NE::login()
+  session_token: true
+data_sources:
+  customers_master:
+    storage: "タブ区切りテキストファイル"
+    path: "Config::$customer_path"
+    fallback: "ファイルが存在しない場合は Customers::$datas を利用し、初回保存時にファイルへ書き出す"
+    format:
+      columns:
+        - id              # 得意先コード
+        - shop_id         # Next Engine 店舗番号
+        - name            # 表示名
+        - shop_name       # CSV 出力用店舗名
+        - tax_type        # 課税 / 非課税 など
+        - tax_method      # 内税 / 免税 など
+        - jan             # 追加行で利用する場合のみ設定、不要なら空
+        - goods_name      # 追加行で利用する場合のみ設定、不要なら空
+      delimiter: "\t"
+      line_ending: "\n"
+inputs:
+  csv_screen:
+    http_method: GET|POST
+    hidden_fields:
+      - name: token
+        required: true
+        description: "Tonary_NE ログイン時にセッションへ格納された CSRF トークン。POST 時に tmp_download.php で検証される。"
+    form_fields:
+      - name: mode
+        type: string
+        values: ["", "exec"]
+        default: ""
+      - name: param_start_date
+        type: date
+        format: "Y-m-d"
+        default: "アクセス日時の日付"
+        required_when: "mode=exec"
+      - name: param_stop_date
+        type: date
+        format: "Y-m-d"
+        default: "アクセス日時の日付"
+        required_when: "mode=exec"
+      - name: param_customer_ids[]
+        type: array<string>
+        default: "マスタ読込結果の全 id"
+        required_when: "mode=exec"
+    ui_elements:
+      - type: button
+        id: edit_customers
+        label: "得意先編集"
+        action: "customers_edit.php を同一ディレクトリで開く（POST token 引き継ぎ）"
+  edit_screen:
+    http_method: GET|POST
+    hidden_fields:
+      - name: token
+        required: true
+      - name: mode
+        type: string
+        values: ["", "save"]
+        default: ""
+    form_fields:
+      - name: customer_tsv
+        type: textarea
+        description: "1行1レコードのタブ区切りテキスト"
+      - name: backup_download
+        type: boolean
+        description: "必要に応じて既存ファイルをダウンロードする仕組みを用意（オプション）"
+processing:
+  csv_screen:
+    steps:
+      - name: initialize
+        actions:
+          - "Tonary::session_start()"
+          - "Tonary::write_accesslog()"
+          - "Tonary_NE::login()"
+          - "顧客マスタを Config::$customer_path から読み込み。存在しない場合は Customers::$datas を利用し、同内容でファイルを作成。"
+      - name: validate_input
+        execute_when: "mode=exec"
+        validations:
+          - "param_customer_ids が未指定の場合はエラー"
+          - "param_start_date / param_stop_date が空の場合はエラー"
+      - name: fetch_orders
+        description: "v1 と同等。受注行 API で対象データを取得し商品コードを抽出。"
+      - name: fetch_goods_master
+        description: "v1 と同等。必要な商品マスタ情報を取得。"
+      - name: transform_rows
+        description: "v1 と同等のビジネスルール。ただしマスタから取得した tax_type / tax_method / jan / goods_name を使用。"
+      - name: merge_and_filter
+        description: "v1 と同等。param_customer_ids で絞り込み。"
+      - name: generate_csv
+        description: "v1 と同等。SJIS の CSV を作成し tmp_download へ誘導。"
+      - name: cleanup_and_listing
+        description: "v1 と同等。古い CSV の削除と一覧表示。"
+  edit_screen:
+    steps:
+      - name: initialize
+        actions:
+          - "Tonary::session_start()"
+          - "Tonary::write_accesslog()"
+          - "Tonary_NE::login()"
+          - "顧客マスタを読み込み、テキストエリアにタブ区切りで表示"
+      - name: validate_and_save
+        execute_when: "mode=save"
+        validations:
+          - "各行が必要カラム数を満たすこと"
+          - "id と shop_id の重複がないこと"
+          - "tax_type / tax_method が許容値であること（未定義の場合は警告）"
+        actions:
+          - "バックアップとして旧ファイルを Config::$customer_path .'.bak' に保存（任意）"
+          - "新しい内容をタブ区切りで Config::$customer_path へ書き込む"
+      - name: completion
+        actions:
+          - "保存成功時は完了メッセージを表示し、csv_screen への戻りリンクを提供"
+outputs:
+  csv_screen:
+    success:
+      - "ヒット件数の表示"
+      - "CSV 自動ダウンロード"
+      - "得意先編集ボタン"
+    failure:
+      - "エラーメッセージ表示"
+  edit_screen:
+    success:
+      - "保存完了メッセージ"
+      - "戻りリンク"
+    failure:
+      - "入力エラーメッセージと該当行の提示"
+security:
+  common:
+    - "X-Frame-Options: DENY"
+    - "Content-Type: text/html; charset=UTF-8"
+    - "Cache-Control: no-store, no-cache, must-revalidate"
+    - "POST token の検証を徹底（csv_screen から edit_screen へも token を引き継ぐ）"
+  edit_screen:
+    - "ファイル書き込みは Config::$customer_path のみ許可。パス検証＆ディレクトリトラバーサル対策を行う。"
+logging:
+  - "Tonary::write_accesslog()"
+  - "Tonary::write_errorlog() / Tonary_NE::write_errorlog()（例外時）"
+limits:
+  - "受注取得や CSV 出力の仕様は v1 と同等（limit=10000）"
+  - "顧客マスタの最大行数は運用で定義（大量行時の UI パフォーマンスに留意）"
