@@ -217,7 +217,10 @@ $(function(){
 <div style="clear:both;"></div>
 <div class="label small" style="margin-top:8px;">
 得意先
-<span class="button" name="edit_customers" style="margin-left:8px;">得意先編集</span>
+</div>
+<div style="margin:6px 0 12px 0;">
+<span class="button" name="edit_customers">得意先編集</span>
+</div>
 <?php
     for ($i=0; $i<$customers_count; $i++){
         print '<input type="checkbox" name="param_customer_ids[]"';
@@ -226,7 +229,6 @@ $(function(){
         print '>'.$customers[$i]['name']."\n";
     }
 ?>
-</div>
 <div style="clear:both;"></div>
 <?php
     if ($mode == 'exec' and $error_flg == false){

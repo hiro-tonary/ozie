@@ -303,7 +303,7 @@ $(function(){
 <textarea name="customer_tsv" rows="18" style="width:100%;"><?=Tonary::html($customer_tsv)?></textarea>
 <div style="margin-top:12px;">
 <span class="button" name="save_customers" style="margin-right:12px;">保存</span>
-<span class="button" name="back_to_list">一覧に戻る</span>
+<span class="button" name="back_to_list">クリア取込用売上げデータに戻る</span>
 </div>
 </form>
 </div>
