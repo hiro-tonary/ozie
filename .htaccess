@@ -18,6 +18,10 @@
     Order allow,deny
     Deny from all
 </FilesMatch>
+<FilesMatch "\.(bak|backup|old|orig|save|swp|tmp|~)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
 RedirectMatch 403 /\.git
 RedirectMatch 403 /rfcs/
 RedirectMatch 403 /specs/

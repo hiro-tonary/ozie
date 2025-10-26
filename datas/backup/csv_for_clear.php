@@ -15,64 +15,6 @@ require_once(Config::$global_include_path.'Tonary_NE.php');
 require_once(Config::$global_include_path.'Tonary_FileMaker.php');
 require_once(dirname(__FILE__).'/../include/Customers.php');
 
-function get_customer_master_path(){
-    if (property_exists('Config', 'customer_path') && Config::$customer_path !== ''){
-        return Config::$customer_path;
-    }
-    return '';
-}
-
-function load_customer_master(){
-    $customers = Customers::$datas;
-    $path = get_customer_master_path();
-    if ($path !== '' && file_exists($path)){
-        $lines = file($path, FILE_IGNORE_NEW_LINES);
-        if ($lines !== false){
-            $loaded = array();
-            foreach ($lines as $line){
-                $line = trim($line);
-                if ($line === ''){
-                    continue;
-                }
-                $cols = explode("\t", $line);
-                if (count($cols) < 6){
-                    continue;
-                }
-                $cols = array_map('trim', $cols);
-                $cols = array_pad($cols, 8, '');
-                $loaded[] = array(
-                    'id' => $cols[0],
-                    'shop_id' => ($cols[1] === '') ? 0 : intval($cols[1]),
-                    'name' => $cols[2],
-                    'shop_name' => ($cols[3] === '') ? $cols[2] : $cols[3],
-                    'tax_type' => $cols[4],
-                    'tax_method' => $cols[5],
-                    'jan' => ($cols[6] === '') ? null : $cols[6],
-                    'goods_name' => ($cols[7] === '') ? null : $cols[7]
-                );
-            }
-            if (count($loaded) > 0){
-                $customers = $loaded;
-            }
-        }
-    }
-    $normalized = array();
-    foreach ($customers as $row){
-        $row['shop_id'] = isset($row['shop_id']) ? intval($row['shop_id']) : 0;
-        if (!isset($row['shop_name'])){
-            $row['shop_name'] = isset($row['name']) ? $row['name'] : '';
-        }
-        if (!array_key_exists('jan', $row)){
-            $row['jan'] = null;
-        }
-        if (!array_key_exists('goods_name', $row)){
-            $row['goods_name'] = null;
-        }
-        $normalized[] = $row;
-    }
-    return $normalized;
-}
-
 $error_flg = false;
 $nextengine = null;
 $login_user = array();
@@ -96,7 +38,7 @@ try {
     $login_user = $nextengine->login();
     $token = $nextengine->token;
 
-    $customers = load_customer_master();
+    $customers = Customers::$datas;
     $customers_count = count($customers);
     $param_start_date = date('Y-m-d');
     $param_stop_date = date('Y-m-d');
@@ -166,10 +108,6 @@ $(function(){
         obj_form.attr("action","tmp_download.php");
         obj_form.submit();
     });
-    //得意先編集
-    $('span[name="edit_customers"]').click(function() {
-        $('#editform').submit();
-    });
 });
 </script>
 </head>
@@ -216,22 +154,15 @@ $(function(){
 </div>
 <div style="clear:both;"></div>
 <div class="label small" style="margin-top:8px;">
-<span style="display:inline-block;min-width:72px;">得意先</span>
-<span style="display:inline-block;margin-left:8px;">
+得意先
 <?php
     for ($i=0; $i<$customers_count; $i++){
-        print '<label style="margin-right:8px;white-space:nowrap;">';
         print '<input type="checkbox" name="param_customer_ids[]"';
         print ' value="'.$customers[$i]['id'].'"';
         print (in_array($customers[$i]['id'], $param_customer_ids))?' checked':'';
-        print '>'.$customers[$i]['name'];
-        print '</label>';
+        print '>'.$customers[$i]['name']."\n";
     }
 ?>
-</span>
-</div>
-<div style="margin:6px 0 12px 0;">
-<span class="button" name="edit_customers">得意先編集</span>
 </div>
 <div style="clear:both;"></div>
 <?php
@@ -631,9 +562,6 @@ nekutai: 販売単価:-1650<br>
     }
 ?>
 </div>
-</form>
-<form id="editform" method="post" action="customers_edit.php" style="display:none;">
-<input type="hidden" name="token" value="<?=$token?>">
 </form>
 </body>
 </html>
