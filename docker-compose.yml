@@ -23,6 +23,7 @@ services:
 
       # Apache設定
       - ./docker/apache/ozie.tonary.biz.conf:/etc/apache2/sites-available/000-default.conf
+      - ./docker/apache/servername.conf:/etc/apache2/conf-enabled/servername.conf
 
       # PHP設定
       - ./docker/php/php.ini:/usr/local/etc/php/php.ini
