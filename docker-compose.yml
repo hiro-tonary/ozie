@@ -7,19 +7,19 @@ services:
     ports:
       - "127.0.0.1:8003:80"
     volumes:
-      # アプリケーションコード
-      - ./tool:/var/www/html/ozie/tool
-      - ./tool_test:/var/www/html/ozie/tool_test
-      - ./index.php:/var/www/html/ozie/index.php
-      - ./style.css:/var/www/html/ozie/style.css
-      - ./.htaccess:/var/www/html/ozie/.htaccess
-      - ./datas:/var/www/html/ozie/datas
+      # アプリケーションコード（現行サーバーと同じパス構造）
+      - ./tool:/home/tonary/www/ozie/tool
+      - ./tool_test:/home/tonary/www/ozie/tool_test
+      - ./index.php:/home/tonary/www/ozie/index.php
+      - ./style.css:/home/tonary/www/ozie/style.css
+      - ./.htaccess:/home/tonary/www/ozie/.htaccess
+      - ./datas:/home/tonary/www/ozie/datas
 
-      # 本番サーバーのディレクトリ構造を再現
+      # Config.php（機密情報、現行サーバーと同じパス）
       - ./docker/config/Config.php:/home/tonary/include/ozie/Config.php
 
-      # 一時ディレクトリ（ホスト側で永続化）
-      - ./docker/tmp:/home/tonary/tmp/ozie
+      # 一時ディレクトリ（現行サーバーと同じパス）
+      - ./docker/tmp:/home/tonary/tmp/ozie/tool
 
       # Apache設定
       - ./docker/apache/ozie.tonary.biz.conf:/etc/apache2/sites-available/000-default.conf

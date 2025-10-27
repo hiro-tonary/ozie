@@ -28,42 +28,48 @@ git clone <リポジトリURL> .
 #### 2.1 Config.php の作成
 
 ```bash
-# 設定ディレクトリ作成
-sudo mkdir -p /home/tonary/include/ozie
-sudo chown $USER:$USER /home/tonary/include/ozie
+cd /var/www/containers/ozie
 
+# 設定ディレクトリは既に存在（docker/config/）
 # サンプルをコピーして編集
-cp config.example/Config.php /home/tonary/include/ozie/Config.php
-vi /home/tonary/include/ozie/Config.php
+cp config.example/Config.php docker/config/Config.php
+vi docker/config/Config.php
 ```
 
 **編集する項目:**
+
+現行サーバーのConfig.phpをコピーして、以下の項目のみ変更してください：
+
 ```php
 <?php
 class Config {
-    // パス設定（eca.tonary.biz用）
-    public static $global_include_path = '/home/tonary/include/ozie/';
-    public static $local_include_path = '/var/www/html/ozie/tool/include/';
-    public static $tmpdir_path = '/home/tonary/tmp/ozie';
-    public static $session_path = '/home/tonary/tmp/ozie/session';
-    public static $customer_path = '/var/www/html/ozie/datas/ozie_customers.tsv';
+    // パス設定は現行サーバーと同じでOK（Docker環境が吸収）
+    public static $global_include_path = '/home/tonary/www/ozie/tool/include/';
+    public static $local_include_path = '/home/tonary/www/ozie/tool/include/';
+    public static $tmpdir_path = '/home/tonary/tmp/ozie/tool/';
+    public static $session_path = '/home/tonary/tmp/ozie/tool/session';
+    public static $customer_path = '/home/tonary/www/ozie/datas/ozie_customers.tsv';
 
-    // Next Engine API設定
+    // ★変更が必要: サーバーURL
+    public static $uri_dir = 'https://ozie.tonary.biz/tool/';
+
+    // ★変更が必要: Next Engine API設定（本番環境）
     public static $ne_server_url = 'https://api.next-engine.org';
     public static $ne_client_id = 'あなたのクライアントID';
     public static $ne_client_secret = 'あなたのクライアントシークレット';
-    public static $ne_redirect_uri = 'https://ozie.tonary.biz/tool/';
 
-    // データベース設定（外部DBサーバー: 192.168.0.n）
+    // ★変更が必要: データベース設定（外部DBサーバー）
     public static $db_host = '192.168.0.XXX';  // 実際のIPアドレス
     public static $db_user = 'データベースユーザー名';
     public static $db_pass = 'データベースパスワード';
-    public static $db_name = 'ozie';
+    public static $db_dbname = 'ozie';
 
-    // その他
+    // その他の設定
     public static $keep_days = 90;
 }
 ```
+
+**重要**: パス設定は現行サーバーと同じ値を使用してください。Docker環境が適切にマウントして吸収します。
 
 #### 2.2 データベースの準備（外部DBサーバー側で実施）
 
@@ -89,10 +95,11 @@ mysql -h 192.168.0.XXX -u ozie_user -p ozie
 #### 2.3 一時ディレクトリの作成
 
 ```bash
-# Docker用一時ディレクトリ
-sudo mkdir -p /home/tonary/tmp/ozie/{clear_csv,session}
-sudo chown -R $USER:$USER /home/tonary/tmp/ozie
-chmod -R 777 /home/tonary/tmp/ozie
+cd /var/www/containers/ozie
+
+# Docker用一時ディレクトリ（docker/tmp/配下）
+mkdir -p docker/tmp/{clear_csv,session}
+chmod -R 777 docker/tmp
 ```
 
 ### 3. Nginx設定
@@ -254,9 +261,10 @@ docker compose exec web tail -f /var/log/php_errors.log
 ### 権限エラーの場合
 
 ```bash
+cd /var/www/containers/ozie
+
 # 一時ディレクトリの権限確認・修正
-sudo chown -R www-data:www-data /home/tonary/tmp/ozie
-sudo chmod -R 777 /home/tonary/tmp/ozie
+chmod -R 777 docker/tmp
 ```
 
 ### コンテナが起動しない場合
@@ -292,14 +300,14 @@ mysql -u root -p
 > SHOW GRANTS FOR 'ozie_user'@'192.168.0.%';
 
 # 5. Config.phpの設定確認
-cat /home/tonary/include/ozie/Config.php | grep db_
+cat docker/config/Config.php | grep db_
 ```
 
 ## セキュリティ注意事項
 
-1. **Config.phpは必ずリポジトリ外に配置**
-   - `/home/tonary/include/ozie/Config.php`
-   - Gitで管理しない
+1. **Config.phpはGitで管理しない**
+   - `docker/config/Config.php` を作成
+   - `.gitignore` で除外済み
 
 2. **ポートは127.0.0.1にバインド**
    - 外部から直接Dockerコンテナにアクセスさせない
@@ -338,17 +346,23 @@ Docker (Apache + PHP 7.4)
 ### ディレクトリ構成
 
 ```
-/var/www/containers/ozie/            # アプリケーションコード（Gitリポジトリ）
+ホスト側（/var/www/containers/ozie/）:
 ├── tool/                            # 本番ツール
 ├── tool_test/                       # テストツール
+├── datas/                           # データファイル
 ├── docker/                          # Docker設定
 │   ├── nginx/                       # Nginx設定ファイル
 │   ├── apache/                      # Apache設定ファイル
 │   ├── php/                         # PHP設定ファイル
-│   ├── config/                      # Config.php の配置先（サンプル）
+│   ├── config/                      # Config.php の配置先
+│   │   └── Config.php               # 実際の設定ファイル（.gitignoreで除外）
 │   └── tmp/                         # 一時ファイル（ホスト側永続化）
+│       ├── clear_csv/
+│       └── session/
 └── docker-compose.yml               # Docker Compose設定
 
-/home/tonary/include/ozie/Config.php # 実際の設定ファイル（リポジトリ外）
-/home/tonary/tmp/ozie/               # 一時ファイル置き場
+コンテナ内のマウント（現行サーバーと同じパス構造を再現）:
+/home/tonary/www/ozie/               → プロジェクトルート
+/home/tonary/include/ozie/Config.php → docker/config/Config.php
+/home/tonary/tmp/ozie/tool/          → docker/tmp/
 ```
