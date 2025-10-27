@@ -1,0 +1,36 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: ozie_web
+    ports:
+      - "127.0.0.1:8003:80"
+    volumes:
+      # アプリケーションコード
+      - ./tool:/var/www/html/ozie/tool
+      - ./tool_test:/var/www/html/ozie/tool_test
+      - ./index.php:/var/www/html/ozie/index.php
+      - ./style.css:/var/www/html/ozie/style.css
+      - ./.htaccess:/var/www/html/ozie/.htaccess
+      - ./datas:/var/www/html/ozie/datas
+
+      # 本番サーバーのディレクトリ構造を再現
+      - ./docker/config/Config.php:/home/tonary/include/ozie/Config.php
+
+      # 一時ディレクトリ（ホスト側で永続化）
+      - ./docker/tmp:/home/tonary/tmp/ozie
+
+      # Apache設定
+      - ./docker/apache/vhost.conf:/etc/apache2/sites-available/000-default.conf
+
+      # PHP設定
+      - ./docker/php/php.ini:/usr/local/etc/php/php.ini
+    environment:
+      - TZ=Asia/Tokyo
+    networks:
+      - ozie_network
+
+networks:
+  ozie_network:
+    driver: bridge

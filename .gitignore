@@ -19,3 +19,8 @@ Thumbs.db
 
 /cache/
 /tmp/
+
+# Docker関連
+docker/tmp/*
+!docker/tmp/.gitkeep
+docker/config/Config.php

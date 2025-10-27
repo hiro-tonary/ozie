@@ -1,39 +1,35 @@
+# Apache 2.4用の.htaccess（Docker開発環境用）
+# 本番環境（Apache 2.2互換モード）とは異なる新しい構文を使用
+
 <FilesMatch "^\.claudeignore$">
-    Order allow,deny
-    Deny from all
+    Require all denied
 </FilesMatch>
 <FilesMatch "^\.codexignore$">
-    Order allow,deny
-    Deny from all
+    Require all denied
 </FilesMatch>
 <FilesMatch "^\.gitignore$">
-    Order allow,deny
-    Deny from all
+    Require all denied
 </FilesMatch>
 <FilesMatch "^AGENTS\.md$">
-    Order allow,deny
-    Deny from all
+    Require all denied
 </FilesMatch>
 <FilesMatch "^README\.md$">
-    Order allow,deny
-    Deny from all
+    Require all denied
 </FilesMatch>
 <FilesMatch "^CLAUDE\.md$">
-    Order allow,deny
-    Deny from all
+    Require all denied
 </FilesMatch>
 <FilesMatch "^\.htaccess\.docker$">
-    Order allow,deny
-    Deny from all
+    Require all denied
 </FilesMatch>
 <FilesMatch "^docker-compose\.yml$">
-    Order allow,deny
-    Deny from all
+    Require all denied
 </FilesMatch>
 <FilesMatch "\.(bak|backup|old|orig|save|swp|tmp|~)$">
-    Order allow,deny
-    Deny from all
+    Require all denied
 </FilesMatch>
+
+# ディレクトリへのアクセス制限
 RedirectMatch 403 /\.git
 RedirectMatch 403 /rfcs/
 RedirectMatch 403 /specs/
